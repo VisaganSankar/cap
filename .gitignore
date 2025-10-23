@@ -5,7 +5,7 @@ yarn-debug.log*
 yarn-error.log*
 
 # Production builds
-build/
+# build/  # Commented out to include build folder in git
 dist/
 
 # Environment variables
