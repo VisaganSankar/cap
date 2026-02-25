@@ -160,13 +160,25 @@ app.get('/api/sensor-data', (req, res) => {
 
 // WebSocket endpoint for real-time sensor data
 app.get('/api/sensor-stream', (req, res) => {
-  res.writeHead(200, {
+  res.status(200)
+  res.set({
     'Content-Type': 'text/event-stream',
     'Cache-Control': 'no-cache',
     'Connection': 'keep-alive',
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Cache-Control'
+    'Access-Control-Allow-Headers': 'Cache-Control',
   })
+  
+  // Flush headers + send an initial event so EventSource "open" reliably fires
+  if (typeof res.flushHeaders === 'function') {
+    res.flushHeaders()
+  }
+  res.write(`event: connected\ndata: ${JSON.stringify({ connected: true, timestamp: Date.now() })}\n\n`)
+  
+  // Keep-alive ping to prevent proxies/timeouts from closing the stream
+  const pingInterval = setInterval(() => {
+    res.write(`: ping ${Date.now()}\n\n`)
+  }, 15000)
 
   const subscriberId = mqttBroker.subscribeToSensorData((event, data) => {
     if (event === 'sensorData') {
@@ -175,6 +187,7 @@ app.get('/api/sensor-stream', (req, res) => {
   })
 
   req.on('close', () => {
+    clearInterval(pingInterval)
     mqttBroker.unsubscribeFromSensorData(subscriberId)
   })
 })
